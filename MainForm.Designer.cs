@@ -30,7 +30,7 @@ namespace BarcodeRename
         {
             this.components = new System.ComponentModel.Container();
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(600, 400);
+            this.ClientSize = new System.Drawing.Size(800, 600);
             this.Text = "Barcode Rename";
         }
 
