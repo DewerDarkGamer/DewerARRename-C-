@@ -8,13 +8,14 @@ namespace BarcodeRename
     public partial class MainForm : Form
     {
         private readonly IBarcodeReader<Bitmap> _reader;
-        
+        private string _imagePath = string.Empty;
+
         public MainForm()
         {
             InitializeComponent();
             
-            // สร้าง BarcodeReader ด้วย IBarcodeReader interface
-            _reader = new BarcodeReader<Bitmap>
+            // สร้าง BarcodeReader ด้วย MultiFormatReader
+            _reader = new BarcodeReader<Bitmap>(null, null, null)
             {
                 Options = new ZXing.Common.DecodingOptions
                 {
@@ -23,33 +24,56 @@ namespace BarcodeRename
             };
         }
 
-        // ตัวอย่างเมธอดสำหรับอ่าน Barcode
+        // เพิ่ม event handler ที่หายไป
+        private void btnLoadImage_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "Image files (*.png;*.jpeg;*.jpg;*.bmp)|*.png;*.jpeg;*.jpg;*.bmp|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    _imagePath = openFileDialog.FileName;
+                    ProcessImage(_imagePath);
+                }
+            }
+        }
+
         private string ReadBarcode(Bitmap image)
         {
             var result = _reader.Decode(image);
             return result?.Text ?? string.Empty;
         }
 
-        // ตัวอย่างเมธอดสำหรับ OCR ด้วย Tesseract
-        private string PerformOcr(Bitmap image)
+        private string PerformOcr(Bitmap bitmap)
         {
             using var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default);
-            using var page = engine.Process(image);
+            // แปลง Bitmap เป็น Pix
+            using var img = Pix.LoadFromFile(_imagePath); // ใช้ไฟล์โดยตรงแทนการแปลง Bitmap
+            using var page = engine.Process(img);
             return page.GetText();
         }
 
-        // ตัวอย่างการใช้งานใน event handler
-        private void ScanButton_Click(object sender, EventArgs e)
+        private void ProcessImage(string imagePath)
         {
-            using var image = new Bitmap("path_to_your_image.png");
-            
-            // อ่าน Barcode
-            string barcodeText = ReadBarcode(image);
-            
-            // ทำ OCR
-            string ocrText = PerformOcr(image);
-            
-            // ทำอย่างอื่นต่อไป...
+            try
+            {
+                using var bitmap = new Bitmap(imagePath);
+                
+                // อ่าน Barcode
+                string barcodeText = ReadBarcode(bitmap);
+                
+                // ทำ OCR
+                string ocrText = PerformOcr(bitmap);
+                
+                // TODO: แสดงผลลัพธ์ในหน้าจอหรือทำงานอื่นต่อ
+                MessageBox.Show($"Barcode: {barcodeText}\nOCR Text: {ocrText}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error processing image: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
