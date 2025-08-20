@@ -1,4 +1,5 @@
 name: Build .NET App
+
 on:
   push:
     branches: [ "main" ]
@@ -19,13 +20,15 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore BarcodeRename.csproj
+        run: dotnet restore ./BarcodeRename.csproj
+        working-directory: ./DewerARRename-C-
 
       - name: Build project
-        run: dotnet publish BarcodeRename.csproj -c Release -r win-x64 --self-contained true -o out
+        run: dotnet publish ./BarcodeRename.csproj -c Release -r win-x64 --self-contained true -o out
+        working-directory: ./DewerARRename-C-
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4.4.0
         with:
           name: windows-build
-          path: out/**
+          path: DewerARRename-C-/out/**
