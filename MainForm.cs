@@ -12,88 +12,10 @@ namespace BarcodeRename
 
         public MainForm()
         {
-            InitializeComponent();
-            
-            _reader = new BarcodeReader
-            {
-                Options = new ZXing.Common.DecodingOptions
-                {
-                    TryHarder = true,
-                    PossibleFormats = new List<BarcodeFormat>
-                    {
-                        BarcodeFormat.CODE_128,
-                        BarcodeFormat.CODE_39,
-                        BarcodeFormat.ITF
-                    }
-                }
-            };
-
-            // สร้าง UI
-            var mainLayout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                RowCount = 3,
-                ColumnCount = 1
-            };
-
-            var btnSelectFiles = new Button
-            {
-                Text = "Select Files",
-                Dock = DockStyle.Fill,
-                Height = 40
-            };
-            btnSelectFiles.Click += (_, _) => SelectFiles();
-
-            var btnSelectFolder = new Button
-            {
-                Text = "Select Folder",
-                Dock = DockStyle.Fill,
-                Height = 40
-            };
-            btnSelectFolder.Click += (_, _) => SelectFolder();
-
-            _logListBox = new ListBox
-            {
-                Dock = DockStyle.Fill
-            };
-
-            mainLayout.Controls.Add(btnSelectFiles, 0, 0);
-            mainLayout.Controls.Add(btnSelectFolder, 0, 1);
-            mainLayout.Controls.Add(_logListBox, 0, 2);
-
-            Controls.Add(mainLayout);
+            // ... โค้ดส่วน constructor เหมือนเดิม ...
         }
 
-        private void SelectFiles()
-        {
-            using var openFileDialog = new OpenFileDialog
-            {
-                Multiselect = true,
-                Filter = "Image files (*.png;*.jpeg;*.jpg;*.bmp)|*.png;*.jpeg;*.jpg;*.bmp|All files (*.*)|*.*",
-                FilterIndex = 1
-            };
-
-            if (openFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                ProcessFiles(openFileDialog.FileNames);
-            }
-        }
-
-        private void SelectFolder()
-        {
-            using var folderDialog = new FolderBrowserDialog();
-            if (folderDialog.ShowDialog() == DialogResult.OK)
-            {
-                string[] files = Directory.GetFiles(folderDialog.SelectedPath, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(file => file.ToLower().EndsWith(".png") || 
-                                 file.ToLower().EndsWith(".jpg") || 
-                                 file.ToLower().EndsWith(".jpeg") || 
-                                 file.ToLower().EndsWith(".bmp"))
-                    .ToArray();
-
-                ProcessFiles(files);
-            }
-        }
+        // ... โค้ดส่วน SelectFiles และ SelectFolder เหมือนเดิม ...
 
         private void ProcessFiles(string[] files)
         {
@@ -103,46 +25,61 @@ namespace BarcodeRename
             {
                 try
                 {
-                    string barcodeText;
+                    List<string> barcodes;
                     using (var bitmap = new Bitmap(filePath))
                     using (var ms = new MemoryStream())
                     {
                         bitmap.Save(ms, bitmap.RawFormat);
                         using var tempBitmap = new Bitmap(ms);
-                        barcodeText = ReadBarcode(tempBitmap);
+                        barcodes = ReadAllBarcodes(tempBitmap);
                     }
 
-                    if (!string.IsNullOrEmpty(barcodeText))
+                    if (barcodes.Any())
                     {
-                        // ตรวจสอบความยาวของ barcode
-                        if (barcodeText.Length >= MIN_BARCODE_LENGTH)
+                        // เรียงลำดับ barcodes ตามความยาวจากมากไปน้อย
+                        var sortedBarcodes = barcodes
+                            .OrderByDescending(b => b.Length)
+                            .ToList();
+
+                        _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
+                        foreach (var barcode in sortedBarcodes)
+                        {
+                            _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length})");
+                        }
+
+                        // เลือก barcode ที่ยาวที่สุดและมีความยาวมากกว่าหรือเท่ากับค่าขั้นต่ำ
+                        var selectedBarcode = sortedBarcodes
+                            .FirstOrDefault(b => b.Length >= MIN_BARCODE_LENGTH);
+
+                        if (selectedBarcode != null)
                         {
                             string directory = Path.GetDirectoryName(filePath)!;
                             string extension = Path.GetExtension(filePath);
-                            string newFilePath = Path.Combine(directory, $"{barcodeText}{extension}");
+                            string newFilePath = Path.Combine(directory, $"{selectedBarcode}{extension}");
 
                             int counter = 1;
                             while (File.Exists(newFilePath))
                             {
-                                newFilePath = Path.Combine(directory, $"{barcodeText}_{counter}{extension}");
+                                newFilePath = Path.Combine(directory, $"{selectedBarcode}_{counter}{extension}");
                                 counter++;
                             }
 
                             Thread.Sleep(100);
                             
                             File.Move(filePath, newFilePath);
-                            _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
-                            _logListBox.Items.Add($"  Barcode length: {barcodeText.Length} characters");
+                            _logListBox.Items.Add($"Renamed using longest barcode: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
                         }
                         else
                         {
-                            _logListBox.Items.Add($"Skipped: {Path.GetFileName(filePath)} - Barcode too short ({barcodeText.Length} characters): {barcodeText}");
+                            _logListBox.Items.Add($"Skipped: No barcode meets minimum length requirement ({MIN_BARCODE_LENGTH} characters)");
                         }
                     }
                     else
                     {
                         _logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
                     }
+
+                    _logListBox.Items.Add(""); // เพิ่มบรรทัดว่างระหว่างไฟล์
                 }
                 catch (Exception ex)
                 {
@@ -152,20 +89,33 @@ namespace BarcodeRename
 
             // แสดงสรุปที่ด้านล่างของล็อก
             _logListBox.Items.Add("");
-            _logListBox.Items.Add($"Process completed at: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+            _logListBox.Items.Add($"Process completed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             _logListBox.Items.Add($"Minimum barcode length: {MIN_BARCODE_LENGTH} characters");
         }
 
-        private string ReadBarcode(Bitmap image)
+        private List<string> ReadAllBarcodes(Bitmap image)
         {
             try
             {
-                var result = _reader.Decode(image);
-                return result?.Text ?? string.Empty;
+                var barcodes = new List<string>();
+                var results = _reader.DecodeMultiple(image);
+                
+                if (results != null)
+                {
+                    foreach (var result in results)
+                    {
+                        if (!string.IsNullOrWhiteSpace(result.Text))
+                        {
+                            barcodes.Add(result.Text);
+                        }
+                    }
+                }
+
+                return barcodes;
             }
             catch
             {
-                return string.Empty;
+                return new List<string>();
             }
         }
     }
