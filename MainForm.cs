@@ -8,6 +8,7 @@ namespace BarcodeRename
     {
         private readonly BarcodeReader _reader;
         private readonly ListBox _logListBox;
+        private const int MIN_BARCODE_LENGTH = 10;
 
         public MainForm()
         {
@@ -103,7 +104,6 @@ namespace BarcodeRename
                 try
                 {
                     string barcodeText;
-                    // แยกการอ่าน barcode ออกมาในบล็อก using เพื่อให้ปล่อย resource ทันที
                     using (var bitmap = new Bitmap(filePath))
                     using (var ms = new MemoryStream())
                     {
@@ -114,23 +114,30 @@ namespace BarcodeRename
 
                     if (!string.IsNullOrEmpty(barcodeText))
                     {
-                        string directory = Path.GetDirectoryName(filePath)!;
-                        string extension = Path.GetExtension(filePath);
-                        string newFilePath = Path.Combine(directory, $"{barcodeText}{extension}");
-
-                        // ถ้ามีไฟล์อยู่แล้ว ให้เพิ่มตัวเลขต่อท้าย
-                        int counter = 1;
-                        while (File.Exists(newFilePath))
+                        // ตรวจสอบความยาวของ barcode
+                        if (barcodeText.Length >= MIN_BARCODE_LENGTH)
                         {
-                            newFilePath = Path.Combine(directory, $"{barcodeText}_{counter}{extension}");
-                            counter++;
-                        }
+                            string directory = Path.GetDirectoryName(filePath)!;
+                            string extension = Path.GetExtension(filePath);
+                            string newFilePath = Path.Combine(directory, $"{barcodeText}{extension}");
 
-                        // เพิ่มการหน่วงเวลาเล็กน้อยเพื่อให้แน่ใจว่าไฟล์ถูกปล่อยแล้ว
-                        Thread.Sleep(100);
-                        
-                        File.Move(filePath, newFilePath);
-                        _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
+                            int counter = 1;
+                            while (File.Exists(newFilePath))
+                            {
+                                newFilePath = Path.Combine(directory, $"{barcodeText}_{counter}{extension}");
+                                counter++;
+                            }
+
+                            Thread.Sleep(100);
+                            
+                            File.Move(filePath, newFilePath);
+                            _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
+                            _logListBox.Items.Add($"  Barcode length: {barcodeText.Length} characters");
+                        }
+                        else
+                        {
+                            _logListBox.Items.Add($"Skipped: {Path.GetFileName(filePath)} - Barcode too short ({barcodeText.Length} characters): {barcodeText}");
+                        }
                     }
                     else
                     {
@@ -142,6 +149,11 @@ namespace BarcodeRename
                     _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
                 }
             }
+
+            // แสดงสรุปที่ด้านล่างของล็อก
+            _logListBox.Items.Add("");
+            _logListBox.Items.Add($"Process completed at: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+            _logListBox.Items.Add($"Minimum barcode length: {MIN_BARCODE_LENGTH} characters");
         }
 
         private string ReadBarcode(Bitmap image)
