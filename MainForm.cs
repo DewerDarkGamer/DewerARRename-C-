@@ -14,17 +14,28 @@ namespace BarcodeRename
         {
             InitializeComponent();
             
-            // สร้าง BarcodeReader ด้วย MultiFormatReader
-            _reader = new BarcodeReader<Bitmap>(null, null, null)
+            // สร้าง BarcodeReader พร้อมกำหนด luminance source delegate
+            _reader = new BarcodeReader<Bitmap>(
+                bitmap => new BitmapLuminanceSource(bitmap),
+                null,
+                null)
             {
                 Options = new ZXing.Common.DecodingOptions
                 {
-                    TryHarder = true
+                    TryHarder = true,
+                    PossibleFormats = new List<BarcodeFormat>
+                    {
+                        BarcodeFormat.QR_CODE,
+                        BarcodeFormat.CODE_128,
+                        BarcodeFormat.CODE_39,
+                        BarcodeFormat.EAN_13,
+                        BarcodeFormat.EAN_8,
+                        // เพิ่มรูปแบบ barcode อื่นๆ ตามที่ต้องการ
+                    }
                 }
             };
         }
 
-        // เพิ่ม event handler ที่หายไป
         private void btnLoadImage_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
@@ -42,17 +53,32 @@ namespace BarcodeRename
 
         private string ReadBarcode(Bitmap image)
         {
-            var result = _reader.Decode(image);
-            return result?.Text ?? string.Empty;
+            try
+            {
+                var result = _reader.Decode(image);
+                return result?.Text ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error reading barcode: {ex.Message}", "Barcode Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return string.Empty;
+            }
         }
 
         private string PerformOcr(Bitmap bitmap)
         {
-            using var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default);
-            // แปลง Bitmap เป็น Pix
-            using var img = Pix.LoadFromFile(_imagePath); // ใช้ไฟล์โดยตรงแทนการแปลง Bitmap
-            using var page = engine.Process(img);
-            return page.GetText();
+            try
+            {
+                using var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default);
+                using var img = Pix.LoadFromFile(_imagePath);
+                using var page = engine.Process(img);
+                return page.GetText();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error performing OCR: {ex.Message}", "OCR Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return string.Empty;
+            }
         }
 
         private void ProcessImage(string imagePath)
@@ -67,8 +93,14 @@ namespace BarcodeRename
                 // ทำ OCR
                 string ocrText = PerformOcr(bitmap);
                 
-                // TODO: แสดงผลลัพธ์ในหน้าจอหรือทำงานอื่นต่อ
-                MessageBox.Show($"Barcode: {barcodeText}\nOCR Text: {ocrText}");
+                // แสดงผลลัพธ์
+                string result = "Results:\n";
+                if (!string.IsNullOrEmpty(barcodeText))
+                    result += $"Barcode: {barcodeText}\n";
+                if (!string.IsNullOrEmpty(ocrText))
+                    result += $"OCR Text: {ocrText}";
+                
+                MessageBox.Show(result, "Processing Results", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
