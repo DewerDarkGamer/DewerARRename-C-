@@ -7,18 +7,15 @@ namespace BarcodeRename
 {
     public partial class MainForm : Form
     {
-        private readonly IBarcodeReader<Bitmap> _reader;
+        private readonly IBarcodeReader _reader;
         private string _imagePath = string.Empty;
 
         public MainForm()
         {
             InitializeComponent();
             
-            // สร้าง BarcodeReader พร้อมกำหนด luminance source delegate
-            _reader = new BarcodeReader<Bitmap>(
-                bitmap => new BitmapLuminanceSource(bitmap),
-                null,
-                null)
+            // สร้าง BarcodeReader แบบใหม่
+            _reader = new BarcodeReader
             {
                 Options = new ZXing.Common.DecodingOptions
                 {
@@ -29,8 +26,7 @@ namespace BarcodeRename
                         BarcodeFormat.CODE_128,
                         BarcodeFormat.CODE_39,
                         BarcodeFormat.EAN_13,
-                        BarcodeFormat.EAN_8,
-                        // เพิ่มรูปแบบ barcode อื่นๆ ตามที่ต้องการ
+                        BarcodeFormat.EAN_8
                     }
                 }
             };
@@ -55,8 +51,14 @@ namespace BarcodeRename
         {
             try
             {
-                var result = _reader.Decode(image);
-                return result?.Text ?? string.Empty;
+                using (var barcodeBitmap = new Bitmap(image))
+                {
+                    LuminanceSource source = new BitmapLuminanceSource(barcodeBitmap);
+                    var binarizer = new ZXing.Common.HybridBinarizer(source);
+                    var binBitmap = new BinaryBitmap(binarizer);
+                    var result = _reader.Decode(binBitmap);
+                    return result?.Text ?? string.Empty;
+                }
             }
             catch (Exception ex)
             {
