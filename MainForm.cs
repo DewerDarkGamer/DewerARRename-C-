@@ -7,7 +7,7 @@ namespace BarcodeRename
 {
     public partial class MainForm : Form
     {
-        private readonly IBarcodeReader _reader;
+        private readonly BarcodeReader _reader;
         private string _imagePath = string.Empty;
 
         public MainForm()
@@ -51,14 +51,9 @@ namespace BarcodeRename
         {
             try
             {
-                using (var barcodeBitmap = new Bitmap(image))
-                {
-                    LuminanceSource source = new BitmapLuminanceSource(barcodeBitmap);
-                    var binarizer = new ZXing.Common.HybridBinarizer(source);
-                    var binBitmap = new BinaryBitmap(binarizer);
-                    var result = _reader.Decode(binBitmap);
-                    return result?.Text ?? string.Empty;
-                }
+                // ใช้ Decode(Bitmap) โดยตรง
+                var result = _reader.Decode(image);
+                return result?.Text ?? string.Empty;
             }
             catch (Exception ex)
             {
