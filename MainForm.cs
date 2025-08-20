@@ -102,8 +102,15 @@ namespace BarcodeRename
             {
                 try
                 {
-                    using var bitmap = new Bitmap(filePath);
-                    string barcodeText = ReadBarcode(bitmap);
+                    string barcodeText;
+                    // แยกการอ่าน barcode ออกมาในบล็อก using เพื่อให้ปล่อย resource ทันที
+                    using (var bitmap = new Bitmap(filePath))
+                    using (var ms = new MemoryStream())
+                    {
+                        bitmap.Save(ms, bitmap.RawFormat);
+                        using var tempBitmap = new Bitmap(ms);
+                        barcodeText = ReadBarcode(tempBitmap);
+                    }
 
                     if (!string.IsNullOrEmpty(barcodeText))
                     {
@@ -119,6 +126,9 @@ namespace BarcodeRename
                             counter++;
                         }
 
+                        // เพิ่มการหน่วงเวลาเล็กน้อยเพื่อให้แน่ใจว่าไฟล์ถูกปล่อยแล้ว
+                        Thread.Sleep(100);
+                        
                         File.Move(filePath, newFilePath);
                         _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
                     }
