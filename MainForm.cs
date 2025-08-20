@@ -1,51 +1,32 @@
-// MainForm.cs
-using System;
-using System.Drawing;
-using System.Windows.Forms;
+// เพิ่ม using directives ที่จำเป็น
 using ZXing;
 using ZXing.Windows.Compatibility;
-using Tesseract;
+using System.Drawing;
 
-namespace BarcodeRename
+// แก้ไขส่วนที่มี error
+// จากเดิม:
+// var reader = new BarcodeReader<Bitmap>();
+
+// เป็น:
+var reader = new BarcodeReader<Bitmap>
 {
-    public partial class MainForm : Form
+    Options = new ZXing.Common.DecodingOptions
     {
-        public MainForm()
+        TryHarder = true
+    }
+};
+
+// สำหรับ PixConverter ที่ไม่พบ
+// ถ้าคุณกำลังพยายามแปลง Bitmap เป็น Pix สำหรับ Tesseract
+// คุณสามารถใช้ Bitmap โดยตรงกับ Tesseract ได้ดังนี้:
+using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
+{
+    using (var bitmap = new Bitmap("your_image.png"))
+    {
+        using (var page = engine.Process(bitmap))
         {
-            InitializeComponent();
-        }
-
-        private void btnLoadImage_Click(object sender, EventArgs e)
-        {
-            using (OpenFileDialog ofd = new OpenFileDialog())
-            {
-                ofd.Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp";
-                if (ofd.ShowDialog() == DialogResult.OK)
-                {
-                    using (Bitmap bitmap = new Bitmap(ofd.FileName))
-                    {
-                        // ✅ ใช้ Generic BarcodeReader<Bitmap>
-                        var reader = new BarcodeReader<Bitmap>();
-                        var result = reader.Decode(bitmap);
-
-                        if (result != null)
-                            txtResult.Text = "Barcode: " + result.Text;
-                        else
-                            txtResult.Text = "ไม่พบ Barcode";
-
-                        // ✅ ส่งต่อไป Tesseract OCR
-                        using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
-                        {
-                            // แปลง Bitmap → Pix
-                            using (var pix = PixConverter.ToPix(bitmap))
-                            using (var page = engine.Process(pix))
-                            {
-                                txtResult.AppendText(Environment.NewLine + "OCR: " + page.GetText());
-                            }
-                        }
-                    }
-                }
-            }
+            var text = page.GetText();
+            // ทำอย่างอื่นต่อไป...
         }
     }
 }
