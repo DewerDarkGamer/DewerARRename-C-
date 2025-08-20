@@ -1,12 +1,14 @@
+// MainForm.Designer.cs
 namespace BarcodeRename
 {
     partial class MainForm
     {
         private System.ComponentModel.IContainer components = null;
-        private System.Windows.Forms.Button btnSelectFile;
-        private System.Windows.Forms.PictureBox pictureBox;
-        private System.Windows.Forms.TextBox txtResult;
 
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -16,44 +18,47 @@ namespace BarcodeRename
             base.Dispose(disposing);
         }
 
+        #region Windows Form Designer generated code
+
         private void InitializeComponent()
         {
-            this.btnSelectFile = new System.Windows.Forms.Button();
-            this.pictureBox = new System.Windows.Forms.PictureBox();
+            this.btnLoadImage = new System.Windows.Forms.Button();
             this.txtResult = new System.Windows.Forms.TextBox();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
             this.SuspendLayout();
-
-            // btnSelectFile
-            this.btnSelectFile.Location = new System.Drawing.Point(20, 20);
-            this.btnSelectFile.Name = "btnSelectFile";
-            this.btnSelectFile.Size = new System.Drawing.Size(120, 30);
-            this.btnSelectFile.Text = "Select Image";
-            this.btnSelectFile.UseVisualStyleBackColor = true;
-            this.btnSelectFile.Click += new System.EventHandler(this.btnSelectFile_Click);
-
-            // pictureBox
-            this.pictureBox.Location = new System.Drawing.Point(20, 70);
-            this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(400, 200);
-            this.pictureBox.TabStop = false;
-
+            // 
+            // btnLoadImage
+            // 
+            this.btnLoadImage.Location = new System.Drawing.Point(12, 12);
+            this.btnLoadImage.Name = "btnLoadImage";
+            this.btnLoadImage.Size = new System.Drawing.Size(120, 40);
+            this.btnLoadImage.TabIndex = 0;
+            this.btnLoadImage.Text = "Load Image";
+            this.btnLoadImage.UseVisualStyleBackColor = true;
+            this.btnLoadImage.Click += new System.EventHandler(this.btnLoadImage_Click);
+            // 
             // txtResult
-            this.txtResult.Location = new System.Drawing.Point(20, 300);
+            // 
+            this.txtResult.Location = new System.Drawing.Point(12, 70);
+            this.txtResult.Multiline = true;
             this.txtResult.Name = "txtResult";
-            this.txtResult.Size = new System.Drawing.Size(400, 23);
-
+            this.txtResult.Size = new System.Drawing.Size(360, 200);
+            this.txtResult.TabIndex = 1;
+            // 
             // MainForm
-            this.ClientSize = new System.Drawing.Size(500, 400);
-            this.Controls.Add(this.btnSelectFile);
-            this.Controls.Add(this.pictureBox);
+            // 
+            this.ClientSize = new System.Drawing.Size(400, 300);
             this.Controls.Add(this.txtResult);
+            this.Controls.Add(this.btnLoadImage);
             this.Name = "MainForm";
             this.Text = "Barcode Rename";
-
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
+
         }
+
+        #endregion
+
+        private System.Windows.Forms.Button btnLoadImage;
+        private System.Windows.Forms.TextBox txtResult;
     }
 }
