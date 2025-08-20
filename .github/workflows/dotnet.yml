@@ -1,5 +1,4 @@
 name: Build .NET App
-
 on:
   push:
     branches: [ "main" ]
