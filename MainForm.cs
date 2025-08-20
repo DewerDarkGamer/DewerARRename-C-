@@ -18,7 +18,7 @@ namespace BarcodeRename
         {
             Bitmap bitmap = (Bitmap)Image.FromFile(filePath);
 
-            var reader = new BarcodeReader();
+            var reader = new ZXing.BarcodeReader<Bitmap>();
             var result = reader.Decode(bitmap);
 
             string newName = result?.Text;
