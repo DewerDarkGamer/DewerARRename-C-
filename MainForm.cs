@@ -25,13 +25,17 @@ namespace BarcodeRename
 
             if (string.IsNullOrEmpty(newName))
             {
-                using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
-                {
-                    using (var page = engine.Process(bitmap))
-                    {
-                        newName = page.GetText().Trim();
-                    }
-                }
+                using (var engine = new Tesseract.TesseractEngine("./tessdata", "eng", Tesseract.EngineMode.Default))
+{
+    using (var pix = Tesseract.PixConverter.ToPix(bitmap))
+    {
+        using (var result = engine.Process(pix))
+        {
+            txtResult.Text = result.GetText();
+        }
+    }
+}
+
             }
 
             if (!string.IsNullOrEmpty(newName))
