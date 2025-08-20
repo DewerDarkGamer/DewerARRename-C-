@@ -1,8 +1,9 @@
+// MainForm.cs
 using System;
 using System.Drawing;
-using System.IO;
 using System.Windows.Forms;
 using ZXing;
+using ZXing.Windows.Compatibility;  // ต้องติดตั้ง NuGet: ZXing.Net.Bindings.Windows.Compatibility
 using Tesseract;
 
 namespace BarcodeRename
@@ -11,46 +12,38 @@ namespace BarcodeRename
     {
         public MainForm()
         {
-            InitializeComponent(); // UI ของ WinForms
+            InitializeComponent();
         }
 
-        private void ProcessImage(string filePath)
+        private void btnLoadImage_Click(object sender, EventArgs e)
         {
-            Bitmap bitmap = (Bitmap)Image.FromFile(filePath);
-
-            var reader = new ZXing.BarcodeReader<Bitmap>();
-            var result = reader.Decode(bitmap);
-
-            string newName = result?.Text;
-
-            if (string.IsNullOrEmpty(newName))
+            using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                using (var engine = new Tesseract.TesseractEngine("./tessdata", "eng", Tesseract.EngineMode.Default))
-{
-    using (var pix = Tesseract.PixConverter.ToPix(bitmap))
-    {
-        using (var result = engine.Process(pix))
-        {
-            txtResult.Text = result.GetText();
-        }
-    }
-}
-
-            }
-
-            if (!string.IsNullOrEmpty(newName))
-            {
-                string dir = Path.GetDirectoryName(filePath);
-                string ext = Path.GetExtension(filePath);
-                string newFile = Path.Combine(dir, newName + ext);
-
-                try
+                ofd.Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp";
+                if (ofd.ShowDialog() == DialogResult.OK)
                 {
-                    File.Move(filePath, newFile);
-                }
-                catch
-                {
-                    MessageBox.Show("ไม่สามารถเปลี่ยนชื่อไฟล์: " + filePath);
+                    using (Bitmap bitmap = new Bitmap(ofd.FileName))
+                    {
+                        // ✅ ใช้ Generic BarcodeReader<Bitmap>
+                        var reader = new BarcodeReader<Bitmap>();
+                        var result = reader.Decode(bitmap);
+
+                        if (result != null)
+                            txtResult.Text = "Barcode: " + result.Text;
+                        else
+                            txtResult.Text = "ไม่พบ Barcode";
+
+                        // ✅ ส่งต่อไป Tesseract OCR
+                        using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
+                        {
+                            // แปลง Bitmap → Pix
+                            using (var pix = PixConverter.ToPix(bitmap))
+                            using (var page = engine.Process(pix))
+                            {
+                                txtResult.AppendText(Environment.NewLine + "OCR: " + page.GetText());
+                            }
+                        }
+                    }
                 }
             }
         }
