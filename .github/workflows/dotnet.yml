@@ -25,8 +25,10 @@ jobs:
       - name: Build project
         run: dotnet publish -c Release -r win-x64 --self-contained true -o out
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: windows-build
-          path: out/**
+     - name: Upload artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: windows-build
+    path: out/**
+    compression-level: 9   # (optional) บีบอัดไฟล์เพื่อลดขนาด
+    overwrite: true        # (optional) ถ้า build ใหม่จะทับไฟล์เก่า
