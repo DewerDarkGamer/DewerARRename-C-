@@ -7,12 +7,12 @@ namespace BarcodeRename
     public partial class MainForm : Form
     {
         private readonly BarcodeReader _reader;
+        private readonly ListBox _logListBox;
 
         public MainForm()
         {
             InitializeComponent();
             
-            // สร้าง BarcodeReader
             _reader = new BarcodeReader
             {
                 Options = new ZXing.Common.DecodingOptions
@@ -27,56 +27,50 @@ namespace BarcodeRename
                 }
             };
 
-            InitializeComponents();
-        }
-
-        private void InitializeComponents()
-        {
-            // สร้าง Controls
-            TableLayoutPanel mainLayout = new TableLayoutPanel
+            // สร้าง UI
+            var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 RowCount = 3,
                 ColumnCount = 1
             };
 
-            Button btnSelectFiles = new Button
+            var btnSelectFiles = new Button
             {
                 Text = "Select Files",
                 Dock = DockStyle.Fill,
                 Height = 40
             };
-            btnSelectFiles.Click += BtnSelectFiles_Click;
+            btnSelectFiles.Click += (_, _) => SelectFiles();
 
-            Button btnSelectFolder = new Button
+            var btnSelectFolder = new Button
             {
                 Text = "Select Folder",
                 Dock = DockStyle.Fill,
                 Height = 40
             };
-            btnSelectFolder.Click += BtnSelectFolder_Click;
+            btnSelectFolder.Click += (_, _) => SelectFolder();
 
-            ListBox logListBox = new ListBox
+            _logListBox = new ListBox
             {
-                Dock = DockStyle.Fill,
-                Name = "logListBox"
+                Dock = DockStyle.Fill
             };
 
             mainLayout.Controls.Add(btnSelectFiles, 0, 0);
             mainLayout.Controls.Add(btnSelectFolder, 0, 1);
-            mainLayout.Controls.Add(logListBox, 0, 2);
+            mainLayout.Controls.Add(_logListBox, 0, 2);
 
-            this.Controls.Add(mainLayout);
-            this.Size = new Size(600, 400);
-            this.Text = "Barcode Rename";
+            Controls.Add(mainLayout);
         }
 
-        private void BtnSelectFiles_Click(object sender, EventArgs e)
+        private void SelectFiles()
         {
-            using OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Multiselect = true;
-            openFileDialog.Filter = "Image files (*.png;*.jpeg;*.jpg;*.bmp)|*.png;*.jpeg;*.jpg;*.bmp|All files (*.*)|*.*";
-            openFileDialog.FilterIndex = 1;
+            using var openFileDialog = new OpenFileDialog
+            {
+                Multiselect = true,
+                Filter = "Image files (*.png;*.jpeg;*.jpg;*.bmp)|*.png;*.jpeg;*.jpg;*.bmp|All files (*.*)|*.*",
+                FilterIndex = 1
+            };
 
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
@@ -84,9 +78,9 @@ namespace BarcodeRename
             }
         }
 
-        private void BtnSelectFolder_Click(object sender, EventArgs e)
+        private void SelectFolder()
         {
-            using FolderBrowserDialog folderDialog = new FolderBrowserDialog();
+            using var folderDialog = new FolderBrowserDialog();
             if (folderDialog.ShowDialog() == DialogResult.OK)
             {
                 string[] files = Directory.GetFiles(folderDialog.SelectedPath, "*.*", SearchOption.TopDirectoryOnly)
@@ -102,8 +96,7 @@ namespace BarcodeRename
 
         private void ProcessFiles(string[] files)
         {
-            ListBox logListBox = (ListBox)Controls.Find("logListBox", true)[0];
-            logListBox.Items.Clear();
+            _logListBox.Items.Clear();
 
             foreach (string filePath in files)
             {
@@ -127,16 +120,16 @@ namespace BarcodeRename
                         }
 
                         File.Move(filePath, newFilePath);
-                        logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
+                        _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
                     }
                     else
                     {
-                        logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
+                        _logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
+                    _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
                 }
             }
         }
