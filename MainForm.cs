@@ -3,7 +3,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using ZXing;
-using ZXing.Windows.Compatibility;  // ต้องติดตั้ง NuGet: ZXing.Net.Bindings.Windows.Compatibility
+using ZXing.Windows;
 using Tesseract;
 
 namespace BarcodeRename
