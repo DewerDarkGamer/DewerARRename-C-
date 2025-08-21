@@ -278,42 +278,57 @@ namespace BarcodeRename
             }
         }
 
-        private Bitmap PreprocessImage(Bitmap original)
+       private Bitmap PreprocessImage(Bitmap original)
+{
+    try
+    {
+        // สร้างภาพใหม่
+        Bitmap processed = new Bitmap(original.Width, original.Height);
+
+        // ปรับความคมชัดและความแตกต่างของสี
+        using (Graphics g = Graphics.FromImage(processed))
         {
-            try
+            ImageAttributes attributes = new ImageAttributes();
+
+            // ปรับ contrast และ brightness ใหม่สำหรับพื้นหลังสีส้ม
+            ColorMatrix colorMatrix = new ColorMatrix(new float[][]
             {
-                // สร้างภาพใหม่
-                Bitmap processed = new Bitmap(original.Width, original.Height);
+                new float[] {3.0f, 0, 0, 0, 0},    // เพิ่ม contrast ของสีแดง
+                new float[] {0, 3.0f, 0, 0, 0},    // เพิ่ม contrast ของสีเขียว
+                new float[] {0, 0, 3.0f, 0, 0},    // เพิ่ม contrast ของสีน้ำเงิน
+                new float[] {0, 0, 0, 1.0f, 0},    // คงค่า alpha
+                new float[] {-0.8f, -0.8f, -0.8f, 0, 1}  // ปรับ brightness ให้เข้มขึ้น
+            });
 
-                // ปรับความคมชัดและความแตกต่างของสี
-                using (Graphics g = Graphics.FromImage(processed))
-                {
-                    // สร้าง ImageAttributes
-                    ImageAttributes attributes = new ImageAttributes();
+            attributes.SetColorMatrix(colorMatrix);
 
-                    // ปรับ contrast และ brightness
-                    ColorMatrix colorMatrix = new ColorMatrix(new float[][]
-                    {
-                        new float[] {2.0f, 0, 0, 0, 0},
-                        new float[] {0, 2.0f, 0, 0, 0},
-                        new float[] {0, 0, 2.0f, 0, 0},
-                        new float[] {0, 0, 0, 1.0f, 0},
-                        new float[] {-0.5f, -0.5f, -0.5f, 0, 1}
-                    });
+            // วาดภาพใหม่ด้วยการปรับแต่ง
+            Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
+            g.DrawImage(original, rect, 0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
+        }
 
-                    attributes.SetColorMatrix(colorMatrix);
-
-                    // วาดภาพใหม่ด้วยการปรับแต่ง
-                    Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
-                    g.DrawImage(original, rect, 0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
-                }
-
-                return processed;
-            }
-            catch
+        // เพิ่มการแปลงเป็นภาพขาวดำ
+        for (int x = 0; x < processed.Width; x++)
+        {
+            for (int y = 0; y < processed.Height; y++)
             {
-                return new Bitmap(original);
+                Color pixel = processed.GetPixel(x, y);
+                int grayScale = (int)((pixel.R * 0.299) + (pixel.G * 0.587) + (pixel.B * 0.114));
+                
+                // ปรับความเข้มของสี (threshold)
+                int threshold = 128;
+                int newValue = grayScale < threshold ? 0 : 255;
+                
+                processed.SetPixel(x, y, Color.FromArgb(pixel.A, newValue, newValue, newValue));
             }
         }
+
+        return processed;
+    }
+    catch
+    {
+        return new Bitmap(original);
+    }
+}
     }
 }
