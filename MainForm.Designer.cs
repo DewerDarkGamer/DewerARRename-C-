@@ -1,31 +1,30 @@
-namespace BarcodeRename
+namespace BarcodeRename;
+
+partial class MainForm
 {
-    partial class MainForm
+    private System.ComponentModel.IContainer components = null;
+
+    protected override void Dispose(bool disposing)
     {
-        private System.ComponentModel.IContainer components = null;
-
-        protected override void Dispose(bool disposing)
+        if (disposing)
         {
-            if (disposing)
+            if (components != null)
             {
-                if (components != null)
-                {
-                    components.Dispose();
-                }
-                if (_tesseract != null)
-                {
-                    _tesseract.Dispose();
-                }
+                components.Dispose();
             }
-            base.Dispose(disposing);
+            if (_tesseract != null)
+            {
+                _tesseract.Dispose();
+            }
         }
+        base.Dispose(disposing);
+    }
 
-        private void InitializeComponent()
-        {
-            this.components = new System.ComponentModel.Container();
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 600);
-            this.Text = "Barcode Rename";
-        }
+    private void InitializeComponent()
+    {
+        this.components = new System.ComponentModel.Container();
+        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.ClientSize = new System.Drawing.Size(800, 600);
+        this.Text = "Barcode Rename";
     }
 }
