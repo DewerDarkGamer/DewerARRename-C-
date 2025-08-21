@@ -13,48 +13,47 @@ namespace BarcodeRename
         private const int MAX_BARCODE_LENGTH = 12;
 
         public MainForm()
+{
+    InitializeComponent();
+
+    this.Size = new Size(800, 600);
+    this.Text = "Barcode Rename";
+    this.MinimumSize = new Size(600, 400);
+
+    _logListBox = new ListBox
+    {
+        Dock = DockStyle.Bottom,
+        Height = 400
+    };
+
+    // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
+    _reader = new BarcodeReader
+    {
+        AutoRotate = true,
+        Options = new ZXing.Common.DecodingOptions
         {
-            InitializeComponent();
-
-            this.Size = new Size(800, 600);
-            this.Text = "Barcode Rename";
-            this.MinimumSize = new Size(600, 400);
-
-            _logListBox = new ListBox
+            TryHarder = true,
+            TryInverted = true,
+            PureBarcode = false,
+            PossibleFormats = new List<BarcodeFormat>
             {
-                Dock = DockStyle.Bottom,
-                Height = 400
-            };
-
-            // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
-            _reader = new BarcodeReader
-            {
-                AutoRotate = true,
-                TryInverted = true,
-                Options = new ZXing.Common.DecodingOptions
-                {
-                    TryHarder = true,
-                    PureBarcode = false,
-                    PossibleFormats = new List<BarcodeFormat>
-                    {
-                        BarcodeFormat.CODE_128,
-                        BarcodeFormat.CODE_39,
-                        BarcodeFormat.ITF,
-                        BarcodeFormat.CODE_93,
-                        BarcodeFormat.EAN_13,
-                        BarcodeFormat.EAN_8,
-                        BarcodeFormat.UPC_A,
-                        BarcodeFormat.UPC_E
-                    },
-                    ReturnCodabarStartEnd = true,
-                    TryCode39ExtendedMode = true,
-                    UseCode39ExtendedMode = true,
-                    AssumeCode39CheckDigit = true,
-                    ReadingMode = ZXing.Common.ReadingMode.TryHarder,
-                    CharacterSet = "UTF-8"
-                }
-            };
-
+                BarcodeFormat.CODE_128,
+                BarcodeFormat.CODE_39,
+                BarcodeFormat.ITF,
+                BarcodeFormat.CODE_93,
+                BarcodeFormat.EAN_13,
+                BarcodeFormat.EAN_8,
+                BarcodeFormat.UPC_A,
+                BarcodeFormat.UPC_E,
+                BarcodeFormat.QR_CODE,
+                BarcodeFormat.DATA_MATRIX,
+                BarcodeFormat.PDF_417
+            },
+            ReturnCodabarStartEnd = true,
+            AssumeCode39CheckDigit = true,
+            CharacterSet = "UTF-8"
+        }
+    };
             // สร้าง Panel สำหรับปุ่ม
             var buttonPanel = new TableLayoutPanel
             {
