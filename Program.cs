@@ -1,6 +1,3 @@
-using System;
-using System.Windows.Forms;
-
 namespace BarcodeRename
 {
     internal static class Program
@@ -8,9 +5,8 @@ namespace BarcodeRename
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());  // เรียกฟอร์มหลัก
+            ApplicationConfiguration.Initialize();
+            Application.Run(new MainForm());
         }
     }
 }
