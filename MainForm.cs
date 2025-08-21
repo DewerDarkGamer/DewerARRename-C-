@@ -9,6 +9,7 @@ namespace BarcodeRename
         private readonly BarcodeReader _reader;
         private readonly ListBox _logListBox;
         private const int MIN_BARCODE_LENGTH = 10;
+        private const int MAX_BARCODE_LENGTH = 12;
 
         public MainForm()
         {
@@ -85,7 +86,7 @@ namespace BarcodeRename
             // แสดงข้อความต้อนรับ
             _logListBox.Items.Add("Welcome to Barcode Rename");
             _logListBox.Items.Add("Click 'Select Files' to process individual files or 'Select Folder' to process all images in a folder");
-            _logListBox.Items.Add($"Minimum barcode length: {MIN_BARCODE_LENGTH} characters");
+            _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
             _logListBox.Items.Add("");
         }
 
@@ -152,23 +153,23 @@ namespace BarcodeRename
 
                     if (barcodes.Any())
                     {
-                        // เรียงลำดับ barcodes ตามความยาวจากมากไปน้อย
-                        var sortedBarcodes = barcodes
-                            .OrderByDescending(b => b.Length)
+                        _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
+                        
+                        // กรองและแสดงเฉพาะ barcodes ที่มีความยาว 10-12 ตัวอักษร
+                        var validBarcodes = barcodes
+                            .Where(b => b.Length >= MIN_BARCODE_LENGTH && b.Length <= MAX_BARCODE_LENGTH)
                             .ToList();
 
-                        _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
-                        foreach (var barcode in sortedBarcodes)
+                        foreach (var barcode in barcodes)
                         {
-                            _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length})");
+                            bool isValid = barcode.Length >= MIN_BARCODE_LENGTH && barcode.Length <= MAX_BARCODE_LENGTH;
+                            _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length}) {(isValid ? "[VALID]" : "[INVALID]")}");
                         }
 
-                        // เลือก barcode ที่ยาวที่สุดและมีความยาวมากกว่าหรือเท่ากับค่าขั้นต่ำ
-                        var selectedBarcode = sortedBarcodes
-                            .FirstOrDefault(b => b.Length >= MIN_BARCODE_LENGTH);
-
-                        if (selectedBarcode != null)
+                        if (validBarcodes.Any())
                         {
+                            // เลือก barcode ที่ถูกต้องตัวแรก
+                            string selectedBarcode = validBarcodes[0];
                             string directory = Path.GetDirectoryName(filePath)!;
                             string extension = Path.GetExtension(filePath);
                             string currentFileName = Path.GetFileNameWithoutExtension(filePath);
@@ -180,7 +181,7 @@ namespace BarcodeRename
                                 File.Exists(newFilePath))
                             {
                                 _logListBox.Items.Add($"Skipped: File with name {newFileName}{extension} already exists");
-                                continue; // ข้ามไปไฟล์ถัดไป
+                                continue;
                             }
 
                             Thread.Sleep(100);
@@ -189,7 +190,7 @@ namespace BarcodeRename
                         }
                         else
                         {
-                            _logListBox.Items.Add($"Skipped: No barcode meets minimum length requirement ({MIN_BARCODE_LENGTH} characters)");
+                            _logListBox.Items.Add($"Skipped: No barcode meets length requirement ({MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters)");
                         }
                     }
                     else
@@ -209,7 +210,7 @@ namespace BarcodeRename
             // แสดงสรุปที่ด้านล่างของล็อก
             _logListBox.Items.Add("");
             _logListBox.Items.Add($"Process completed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            _logListBox.Items.Add($"Minimum barcode length: {MIN_BARCODE_LENGTH} characters");
+            _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
         }
 
         private List<string> ReadAllBarcodes(Bitmap image)
