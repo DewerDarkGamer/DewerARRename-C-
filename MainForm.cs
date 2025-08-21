@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using ZXing;
 using ZXing.Windows.Compatibility;
+using Tesseract;
 
 namespace BarcodeRename
 {
@@ -9,6 +10,7 @@ namespace BarcodeRename
     {
         private readonly BarcodeReader _reader;
         private readonly ListBox _logListBox;
+        private readonly TesseractEngine _tesseract;
         private const int MIN_BARCODE_LENGTH = 10;
         private const int MAX_BARCODE_LENGTH = 12;
 
@@ -54,6 +56,10 @@ namespace BarcodeRename
                     CharacterSet = "UTF-8"
                 }
             };
+
+            // สร้าง TesseractEngine
+            _tesseract = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default);
+            _tesseract.DefaultPageSegMode = PageSegMode.SingleBlock;
 
             // สร้าง Panel สำหรับปุ่ม
             var buttonPanel = new TableLayoutPanel
@@ -233,7 +239,7 @@ namespace BarcodeRename
             {
                 var barcodes = new List<string>();
                 
-                // ทดลองอ่านจากภาพต้นฉบับ
+                // พยายามอ่าน barcode ก่อน
                 var results = _reader.DecodeMultiple(image);
                 if (results != null)
                 {
@@ -246,11 +252,12 @@ namespace BarcodeRename
                     }
                 }
 
-                // ถ้ายังไม่พบ barcode ลองประมวลผลภาพและอ่านอีกครั้ง
+                // ถ้าอ่าน barcode ไม่ได้ ลองอ่านข้อความด้วย OCR
                 if (!barcodes.Any())
                 {
                     using (var processedImage = PreprocessImage(image))
                     {
+                        // ลองอ่าน barcode จากภาพที่ประมวลผลแล้ว
                         results = _reader.DecodeMultiple(processedImage);
                         if (results != null)
                         {
@@ -262,24 +269,14 @@ namespace BarcodeRename
                                 }
                             }
                         }
-                    }
-                }
 
-                // ถ้ายังไม่พบ barcode ลองหมุนภาพและอ่านอีกครั้ง
-                if (!barcodes.Any())
-                {
-                    using (var rotatedImage = new Bitmap(image))
-                    {
-                        rotatedImage.RotateFlip(RotateFlipType.Rotate90FlipNone);
-                        results = _reader.DecodeMultiple(rotatedImage);
-                        if (results != null)
+                        // ถ้ายังอ่านไม่ได้ ใช้ OCR
+                        if (!barcodes.Any())
                         {
-                            foreach (var result in results)
+                            var qaNumber = ExtractQANumber(processedImage);
+                            if (!string.IsNullOrWhiteSpace(qaNumber))
                             {
-                                if (!string.IsNullOrWhiteSpace(result.Text))
-                                {
-                                    barcodes.Add(result.Text);
-                                }
+                                barcodes.Add(qaNumber);
                             }
                         }
                     }
@@ -345,5 +342,30 @@ namespace BarcodeRename
                 return new Bitmap(original);
             }
         }
-    }
-}
+
+        private string ExtractQANumber(Bitmap image)
+        {
+            try
+            {
+                using (var page = _tesseract.Process(image))
+                {
+                    var text = page.GetText();
+                    var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    
+                    // ค้นหาข้อความที่ขึ้นต้นด้วย Q และมีความยาว 10-12 ตัวอักษร
+                    foreach (var line in lines)
+                    {
+                        var trimmedLine = line.Trim();
+                        if (trimmedLine.StartsWith("Q") && 
+                            trimmedLine.Length >= MIN_BARCODE_LENGTH && 
+                            trimmedLine.Length <= MAX_BARCODE_LENGTH)
+                        {
+                            // ตรวจสอบว่าเป็นรหัสที่ถูกต้อง (ตัวอักษรและตัวเลขเท่านั้น)
+                            if (trimmedLine.All(c => char.IsLetterOrDigit(c)))
+                            {
+                                return trimmedLine;
+                            }
+                        }
+                    }
+                }
+                return string
