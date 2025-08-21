@@ -135,84 +135,90 @@ namespace BarcodeRename
         }
 
         private void ProcessFiles(string[] files)
+{
+    _logListBox.Items.Clear();
+
+    foreach (string filePath in files)
+    {
+        try
         {
-            _logListBox.Items.Clear();
-
-            foreach (string filePath in files)
+            List<string> barcodes;
+            using (var bitmap = new Bitmap(filePath))
+            using (var ms = new MemoryStream())
             {
-                try
-                {
-                    List<string> barcodes;
-                    using (var bitmap = new Bitmap(filePath))
-                    using (var ms = new MemoryStream())
-                    {
-                        bitmap.Save(ms, bitmap.RawFormat);
-                        using var tempBitmap = new Bitmap(ms);
-                        barcodes = ReadAllBarcodes(tempBitmap);
-                    }
-
-                    if (barcodes.Any())
-                    {
-                        _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
-                        
-                        // กรองและแสดงเฉพาะ barcodes ที่มีความยาว 10-12 ตัวอักษร
-                        var validBarcodes = barcodes
-                            .Where(b => b.Length >= MIN_BARCODE_LENGTH && b.Length <= MAX_BARCODE_LENGTH)
-                            .ToList();
-
-                        foreach (var barcode in barcodes)
-                        {
-                            bool isValid = barcode.Length >= MIN_BARCODE_LENGTH && barcode.Length <= MAX_BARCODE_LENGTH;
-                            _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length}) {(isValid ? "[VALID]" : "[INVALID]")}");
-                        }
-
-                        if (validBarcodes.Any())
-                        {
-                            // เลือก barcode ที่ถูกต้องตัวแรก
-                            string selectedBarcode = validBarcodes[0];
-                            string directory = Path.GetDirectoryName(filePath)!;
-                            string extension = Path.GetExtension(filePath);
-                            string currentFileName = Path.GetFileNameWithoutExtension(filePath);
-                            string newFileName = selectedBarcode;
-                            string newFilePath = Path.Combine(directory, $"{newFileName}{extension}");
-
-                            // ตรวจสอบว่าชื่อไฟล์เดิมตรงกับ barcode หรือมีไฟล์ชื่อนี้อยู่แล้ว
-                            if (currentFileName.Equals(newFileName, StringComparison.OrdinalIgnoreCase) || 
-                                File.Exists(newFilePath))
-                            {
-                                _logListBox.Items.Add($"Skipped: File with name {newFileName}{extension} already exists");
-                                continue;
-                            }
-
-                            Thread.Sleep(100);
-                            File.Move(filePath, newFilePath);
-                            _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
-                        }
-                        else
-                        {
-                            _logListBox.Items.Add($"Skipped: No barcode meets length requirement ({MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters)");
-                        }
-                    }
-                    else
-                    {
-                        _logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
-                    }
-
-                    _logListBox.Items.Add(""); // เพิ่มบรรทัดว่างระหว่างไฟล์
-                }
-                catch (Exception ex)
-                {
-                    _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
-                    _logListBox.Items.Add(""); // เพิ่มบรรทัดว่างหลังข้อผิดพลาด
-                }
+                bitmap.Save(ms, bitmap.RawFormat);
+                using var tempBitmap = new Bitmap(ms);
+                barcodes = ReadAllBarcodes(tempBitmap);
             }
 
-            // แสดงสรุปที่ด้านล่างของล็อก
-            _logListBox.Items.Add("");
-            _logListBox.Items.Add($"Process completed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
-        }
+            if (barcodes.Any())
+            {
+                _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
+                
+                // กรองและแสดงเฉพาะ barcodes ที่มีความยาว 10-12 ตัวอักษร
+                var validBarcodes = barcodes
+                    .Where(b => b.Length >= MIN_BARCODE_LENGTH && b.Length <= MAX_BARCODE_LENGTH)
+                    .ToList();
 
+                foreach (var barcode in barcodes)
+                {
+                    bool isValid = barcode.Length >= MIN_BARCODE_LENGTH && barcode.Length <= MAX_BARCODE_LENGTH;
+                    _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length}) {(isValid ? "[VALID]" : "[INVALID]")}");
+                }
+
+                if (validBarcodes.Any())
+                {
+                    // เลือก barcode ที่ถูกต้องตัวแรก
+                    string selectedBarcode = validBarcodes[0];
+                    string directory = Path.GetDirectoryName(filePath)!;
+                    string extension = Path.GetExtension(filePath);
+                    string currentFileName = Path.GetFileNameWithoutExtension(filePath);
+                    string newFileName = selectedBarcode;
+                    string newFilePath = Path.Combine(directory, $"{newFileName}{extension}");
+
+                    // ตรวจสอบว่าชื่อไฟล์เดิมตรงกับ barcode
+                    if (currentFileName.Equals(newFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logListBox.Items.Add($"Skipped: File already has correct name - {Path.GetFileName(filePath)}");
+                        continue;
+                    }
+
+                    // ถ้ามีไฟล์อยู่แล้ว ให้เพิ่มตัวเลขต่อท้าย
+                    int counter = 1;
+                    while (File.Exists(newFilePath))
+                    {
+                        newFilePath = Path.Combine(directory, $"{newFileName}_{counter}{extension}");
+                        counter++;
+                    }
+
+                    Thread.Sleep(100);
+                    File.Move(filePath, newFilePath);
+                    _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
+                }
+                else
+                {
+                    _logListBox.Items.Add($"Skipped: No barcode meets length requirement ({MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters)");
+                }
+            }
+            else
+            {
+                _logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
+            }
+
+            _logListBox.Items.Add(""); // เพิ่มบรรทัดว่างระหว่างไฟล์
+        }
+        catch (Exception ex)
+        {
+            _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
+            _logListBox.Items.Add(""); // เพิ่มบรรทัดว่างหลังข้อผิดพลาด
+        }
+    }
+
+    // แสดงสรุปที่ด้านล่างของล็อก
+    _logListBox.Items.Add("");
+    _logListBox.Items.Add($"Process completed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+    _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
+}
         private List<string> ReadAllBarcodes(Bitmap image)
         {
             try
