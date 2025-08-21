@@ -13,47 +13,48 @@ namespace BarcodeRename
         private const int MAX_BARCODE_LENGTH = 12;
 
         public MainForm()
-{
-    InitializeComponent();
-
-    this.Size = new Size(800, 600);
-    this.Text = "Barcode Rename";
-    this.MinimumSize = new Size(600, 400);
-
-    _logListBox = new ListBox
-    {
-        Dock = DockStyle.Bottom,
-        Height = 400
-    };
-
-    // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
-    _reader = new BarcodeReader
-    {
-        AutoRotate = true,
-        Options = new ZXing.Common.DecodingOptions
         {
-            TryHarder = true,
-            TryInverted = true,
-            PureBarcode = false,
-            PossibleFormats = new List<BarcodeFormat>
+            InitializeComponent();
+
+            this.Size = new Size(800, 600);
+            this.Text = "Barcode Rename";
+            this.MinimumSize = new Size(600, 400);
+
+            _logListBox = new ListBox
             {
-                BarcodeFormat.CODE_128,
-                BarcodeFormat.CODE_39,
-                BarcodeFormat.ITF,
-                BarcodeFormat.CODE_93,
-                BarcodeFormat.EAN_13,
-                BarcodeFormat.EAN_8,
-                BarcodeFormat.UPC_A,
-                BarcodeFormat.UPC_E,
-                BarcodeFormat.QR_CODE,
-                BarcodeFormat.DATA_MATRIX,
-                BarcodeFormat.PDF_417
-            },
-            ReturnCodabarStartEnd = true,
-            AssumeCode39CheckDigit = true,
-            CharacterSet = "UTF-8"
-        }
-    };
+                Dock = DockStyle.Bottom,
+                Height = 400
+            };
+
+            // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
+            _reader = new BarcodeReader
+            {
+                AutoRotate = true,
+                Options = new ZXing.Common.DecodingOptions
+                {
+                    TryHarder = true,
+                    TryInverted = true,
+                    PureBarcode = false,
+                    PossibleFormats = new List<BarcodeFormat>
+                    {
+                        BarcodeFormat.CODE_128,
+                        BarcodeFormat.CODE_39,
+                        BarcodeFormat.ITF,
+                        BarcodeFormat.CODE_93,
+                        BarcodeFormat.EAN_13,
+                        BarcodeFormat.EAN_8,
+                        BarcodeFormat.UPC_A,
+                        BarcodeFormat.UPC_E,
+                        BarcodeFormat.QR_CODE,
+                        BarcodeFormat.DATA_MATRIX,
+                        BarcodeFormat.PDF_417
+                    },
+                    ReturnCodabarStartEnd = true,
+                    AssumeCode39CheckDigit = true,
+                    CharacterSet = "UTF-8"
+                }
+            };
+
             // สร้าง Panel สำหรับปุ่ม
             var buttonPanel = new TableLayoutPanel
             {
@@ -145,31 +146,95 @@ namespace BarcodeRename
             }
         }
 
-private List<string> ReadAllBarcodes(Bitmap image)
-{
-    try
-    {
-        var barcodes = new List<string>();
-        
-        // ทดลองอ่านจากภาพต้นฉบับ
-        var results = _reader.DecodeMultiple(image);
-        if (results != null)
+        private void ProcessFiles(string[] files)
         {
-            foreach (var result in results)
+            _logListBox.Items.Clear();
+
+            foreach (string filePath in files)
             {
-                if (!string.IsNullOrWhiteSpace(result.Text))
+                try
                 {
-                    barcodes.Add(result.Text);
+                    List<string> barcodes;
+                    using (var bitmap = new Bitmap(filePath))
+                    {
+                        barcodes = ReadAllBarcodes(bitmap);
+                    }
+
+                    if (barcodes.Any())
+                    {
+                        _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
+                        
+                        // กรองและแสดงเฉพาะ barcodes ที่มีความยาว 10-12 ตัวอักษร
+                        var validBarcodes = barcodes
+                            .Where(b => b.Length >= MIN_BARCODE_LENGTH && b.Length <= MAX_BARCODE_LENGTH)
+                            .ToList();
+
+                        foreach (var barcode in barcodes)
+                        {
+                            bool isValid = barcode.Length >= MIN_BARCODE_LENGTH && barcode.Length <= MAX_BARCODE_LENGTH;
+                            _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length}) {(isValid ? "[VALID]" : "[INVALID]")}");
+                        }
+
+                        if (validBarcodes.Any())
+                        {
+                            string selectedBarcode = validBarcodes[0];
+                            string directory = Path.GetDirectoryName(filePath)!;
+                            string extension = Path.GetExtension(filePath);
+                            string currentFileName = Path.GetFileNameWithoutExtension(filePath);
+                            string newFileName = selectedBarcode;
+                            string newFilePath = Path.Combine(directory, $"{newFileName}{extension}");
+
+                            // ตรวจสอบว่าชื่อไฟล์เดิมตรงกับ barcode
+                            if (currentFileName.Equals(newFileName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                _logListBox.Items.Add($"Skipped: File already has correct name - {Path.GetFileName(filePath)}");
+                                continue;
+                            }
+
+                            // ถ้ามีไฟล์อยู่แล้ว ให้เพิ่มตัวเลขต่อท้าย
+                            int counter = 1;
+                            while (File.Exists(newFilePath))
+                            {
+                                newFilePath = Path.Combine(directory, $"{newFileName}_{counter}{extension}");
+                                counter++;
+                            }
+
+                            Thread.Sleep(100);
+                            File.Move(filePath, newFilePath);
+                            _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
+                        }
+                        else
+                        {
+                            _logListBox.Items.Add($"Skipped: No barcode meets length requirement ({MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters)");
+                        }
+                    }
+                    else
+                    {
+                        _logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
+                    }
+
+                    _logListBox.Items.Add("");
+                }
+                catch (Exception ex)
+                {
+                    _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
+                    _logListBox.Items.Add("");
                 }
             }
+
+            _logListBox.Items.Add("");
+            _logListBox.Items.Add($"Process completed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
         }
 
-        // ถ้ายังไม่พบ barcode ลองประมวลผลภาพและอ่านอีกครั้ง
-        if (!barcodes.Any())
+        private List<string> ReadAllBarcodes(Bitmap image)
         {
-            using (var processedImage = PreprocessImage(image))
+            try
             {
-                results = _reader.DecodeMultiple(processedImage);
+                var barcodes = new List<string>();
+                
+                // ทดลองอ่านจากภาพต้นฉบับ
+                var results = _reader.DecodeMultiple(image);
                 if (results != null)
                 {
                     foreach (var result in results)
@@ -180,88 +245,105 @@ private List<string> ReadAllBarcodes(Bitmap image)
                         }
                     }
                 }
-            }
-        }
 
-        // ถ้ายังไม่พบ barcode ลองหมุนภาพและอ่านอีกครั้ง
-        if (!barcodes.Any())
-        {
-            using (var rotatedImage = new Bitmap(image))
-            {
-                rotatedImage.RotateFlip(RotateFlipType.Rotate90FlipNone);
-                results = _reader.DecodeMultiple(rotatedImage);
-                if (results != null)
+                // ถ้ายังไม่พบ barcode ลองประมวลผลภาพและอ่านอีกครั้ง
+                if (!barcodes.Any())
                 {
-                    foreach (var result in results)
+                    using (var processedImage = PreprocessImage(image))
                     {
-                        if (!string.IsNullOrWhiteSpace(result.Text))
+                        results = _reader.DecodeMultiple(processedImage);
+                        if (results != null)
                         {
-                            barcodes.Add(result.Text);
+                            foreach (var result in results)
+                            {
+                                if (!string.IsNullOrWhiteSpace(result.Text))
+                                {
+                                    barcodes.Add(result.Text);
+                                }
+                            }
                         }
                     }
                 }
+
+                // ถ้ายังไม่พบ barcode ลองหมุนภาพและอ่านอีกครั้ง
+                if (!barcodes.Any())
+                {
+                    using (var rotatedImage = new Bitmap(image))
+                    {
+                        rotatedImage.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                        results = _reader.DecodeMultiple(rotatedImage);
+                        if (results != null)
+                        {
+                            foreach (var result in results)
+                            {
+                                if (!string.IsNullOrWhiteSpace(result.Text))
+                                {
+                                    barcodes.Add(result.Text);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return barcodes;
+            }
+            catch
+            {
+                return new List<string>();
             }
         }
 
-        return barcodes;
-    }
-    catch
-    {
-        return new List<string>();
-    }
-}
-
-       private Bitmap PreprocessImage(Bitmap original)
-{
-    try
-    {
-        // สร้างภาพใหม่
-        Bitmap processed = new Bitmap(original.Width, original.Height);
-
-        // ปรับความคมชัดและความแตกต่างของสี
-        using (Graphics g = Graphics.FromImage(processed))
+        private Bitmap PreprocessImage(Bitmap original)
         {
-            ImageAttributes attributes = new ImageAttributes();
-
-            // ปรับ contrast และ brightness ใหม่สำหรับพื้นหลังสีส้ม
-            ColorMatrix colorMatrix = new ColorMatrix(new float[][]
+            try
             {
-                new float[] {3.0f, 0, 0, 0, 0},    // เพิ่ม contrast ของสีแดง
-                new float[] {0, 3.0f, 0, 0, 0},    // เพิ่ม contrast ของสีเขียว
-                new float[] {0, 0, 3.0f, 0, 0},    // เพิ่ม contrast ของสีน้ำเงิน
-                new float[] {0, 0, 0, 1.0f, 0},    // คงค่า alpha
-                new float[] {-0.8f, -0.8f, -0.8f, 0, 1}  // ปรับ brightness ให้เข้มขึ้น
-            });
+                // สร้างภาพใหม่
+                Bitmap processed = new Bitmap(original.Width, original.Height);
 
-            attributes.SetColorMatrix(colorMatrix);
+                // ปรับความคมชัดและความแตกต่างของสี
+                using (Graphics g = Graphics.FromImage(processed))
+                {
+                    ImageAttributes attributes = new ImageAttributes();
 
-            // วาดภาพใหม่ด้วยการปรับแต่ง
-            Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
-            g.DrawImage(original, rect, 0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
-        }
+                    // ปรับ contrast และ brightness ใหม่สำหรับพื้นหลังสีส้ม
+                    ColorMatrix colorMatrix = new ColorMatrix(new float[][]
+                    {
+                        new float[] {3.0f, 0, 0, 0, 0},    // เพิ่ม contrast ของสีแดง
+                        new float[] {0, 3.0f, 0, 0, 0},    // เพิ่ม contrast ของสีเขียว
+                        new float[] {0, 0, 3.0f, 0, 0},    // เพิ่ม contrast ของสีน้ำเงิน
+                        new float[] {0, 0, 0, 1.0f, 0},    // คงค่า alpha
+                        new float[] {-0.8f, -0.8f, -0.8f, 0, 1}  // ปรับ brightness ให้เข้มขึ้น
+                    });
 
-        // เพิ่มการแปลงเป็นภาพขาวดำ
-        for (int x = 0; x < processed.Width; x++)
-        {
-            for (int y = 0; y < processed.Height; y++)
+                    attributes.SetColorMatrix(colorMatrix);
+
+                    // วาดภาพใหม่ด้วยการปรับแต่ง
+                    Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
+                    g.DrawImage(original, rect, 0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
+                }
+
+                // เพิ่มการแปลงเป็นภาพขาวดำ
+                for (int x = 0; x < processed.Width; x++)
+                {
+                    for (int y = 0; y < processed.Height; y++)
+                    {
+                        Color pixel = processed.GetPixel(x, y);
+                        int grayScale = (int)((pixel.R * 0.299) + (pixel.G * 0.587) + (pixel.B * 0.114));
+                        
+                        // ปรับความเข้มของสี (threshold)
+                        int threshold = 128;
+                        int newValue = grayScale < threshold ? 0 : 255;
+                        
+                        processed.SetPixel(x, y, Color.FromArgb(pixel.A, newValue, newValue, newValue));
+                    }
+                }
+
+                return processed;
+            }
+            catch
             {
-                Color pixel = processed.GetPixel(x, y);
-                int grayScale = (int)((pixel.R * 0.299) + (pixel.G * 0.587) + (pixel.B * 0.114));
-                
-                // ปรับความเข้มของสี (threshold)
-                int threshold = 128;
-                int newValue = grayScale < threshold ? 0 : 255;
-                
-                processed.SetPixel(x, y, Color.FromArgb(pixel.A, newValue, newValue, newValue));
+                return new Bitmap(original);
             }
         }
-
-        return processed;
-    }
-    catch
-    {
-        return new Bitmap(original);
-    }
-}
     }
 }
