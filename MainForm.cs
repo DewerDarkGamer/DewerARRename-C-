@@ -331,33 +331,49 @@ public partial class MainForm : Form
     }
 
     private string ExtractQANumber(Bitmap image)
+{
+    try
     {
-        try
+        // แปลง Bitmap เป็น Pix
+        using var pix = BitmapToPixConverter(image);
+        using (var page = _tesseract.Process(pix))
         {
-            using (var page = _tesseract.Process(image))
+            var text = page.GetText();
+            var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            foreach (var line in lines)
             {
-                var text = page.GetText();
-                var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                
-                foreach (var line in lines)
+                var trimmedLine = line.Trim();
+                if (trimmedLine.StartsWith("Q") && 
+                    trimmedLine.Length >= MIN_BARCODE_LENGTH && 
+                    trimmedLine.Length <= MAX_BARCODE_LENGTH)
                 {
-                    var trimmedLine = line.Trim();
-                    if (trimmedLine.StartsWith("Q") && 
-                        trimmedLine.Length >= MIN_BARCODE_LENGTH && 
-                        trimmedLine.Length <= MAX_BARCODE_LENGTH)
+                    if (trimmedLine.All(c => char.IsLetterOrDigit(c)))
                     {
-                        if (trimmedLine.All(c => char.IsLetterOrDigit(c)))
-                        {
-                            return trimmedLine;
-                        }
+                        return trimmedLine;
                     }
                 }
-                return string.Empty;
             }
-        }
-        catch
-        {
             return string.Empty;
         }
+    }
+    catch
+    {
+        return string.Empty;
+    }
+}
+
+// เพิ่มเมธอดใหม่สำหรับแปลง Bitmap เป็น Pix
+private Pix BitmapToPixConverter(Bitmap bitmap)
+{
+    try
+    {
+        using var ms = new MemoryStream();
+        bitmap.Save(ms, ImageFormat.Png);
+        return Pix.LoadFromMemory(ms.ToArray());
+    }
+    catch
+    {
+        throw new Exception("Failed to convert Bitmap to Pix");
     }
 }
