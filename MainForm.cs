@@ -171,19 +171,21 @@ namespace BarcodeRename
                         {
                             string directory = Path.GetDirectoryName(filePath)!;
                             string extension = Path.GetExtension(filePath);
-                            string newFilePath = Path.Combine(directory, $"{selectedBarcode}{extension}");
+                            string currentFileName = Path.GetFileNameWithoutExtension(filePath);
+                            string newFileName = selectedBarcode;
+                            string newFilePath = Path.Combine(directory, $"{newFileName}{extension}");
 
-                            int counter = 1;
-                            while (File.Exists(newFilePath))
+                            // ตรวจสอบว่าชื่อไฟล์เดิมตรงกับ barcode หรือมีไฟล์ชื่อนี้อยู่แล้ว
+                            if (currentFileName.Equals(newFileName, StringComparison.OrdinalIgnoreCase) || 
+                                File.Exists(newFilePath))
                             {
-                                newFilePath = Path.Combine(directory, $"{selectedBarcode}_{counter}{extension}");
-                                counter++;
+                                _logListBox.Items.Add($"Skipped: File with name {newFileName}{extension} already exists");
+                                continue; // ข้ามไปไฟล์ถัดไป
                             }
 
                             Thread.Sleep(100);
-                            
                             File.Move(filePath, newFilePath);
-                            _logListBox.Items.Add($"Renamed using longest barcode: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
+                            _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
                         }
                         else
                         {
@@ -200,6 +202,7 @@ namespace BarcodeRename
                 catch (Exception ex)
                 {
                     _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
+                    _logListBox.Items.Add(""); // เพิ่มบรรทัดว่างหลังข้อผิดพลาด
                 }
             }
 
