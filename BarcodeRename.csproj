@@ -9,15 +9,6 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <ApplicationIcon>app.ico</ApplicationIcon>
-    <Authors>DewerDarkGamer</Authors>
-    <Company>DewerDarkGamer</Company>
-    <Product>Barcode Rename</Product>
-    <Description>A tool for renaming files based on barcodes and QA numbers</Description>
-    <Copyright>Copyright © 2025 DewerDarkGamer</Copyright>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0</AssemblyVersion>
-    <FileVersion>1.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
