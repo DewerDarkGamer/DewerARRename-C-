@@ -16,30 +16,17 @@ namespace BarcodeRename
 
         public MainForm()
         {
-           public partial class MainForm : Form
-    {
-        private readonly BarcodeReader _reader;
-        private readonly ListBox _logListBox;
-        private readonly TesseractEngine _tesseract;
-        private const int MIN_BARCODE_LENGTH = 10;
-        private const int MAX_BARCODE_LENGTH = 12;
-
-        public MainForm()
-        {
             InitializeComponent();
 
-            // ตั้งค่าฟอร์ม
             this.Size = new Size(800, 600);
             this.Text = "Barcode Rename";
             this.MinimumSize = new Size(600, 400);
 
-            // สร้าง ListBox
             _logListBox = new ListBox
             {
                 Dock = DockStyle.Bottom,
                 Height = 400
             };
-
 
             // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
             _reader = new BarcodeReader
@@ -183,7 +170,6 @@ namespace BarcodeRename
                     {
                         _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
                         
-                        // กรองและแสดงเฉพาะ barcodes ที่มีความยาว 10-12 ตัวอักษร
                         var validBarcodes = barcodes
                             .Where(b => b.Length >= MIN_BARCODE_LENGTH && b.Length <= MAX_BARCODE_LENGTH)
                             .ToList();
@@ -203,14 +189,12 @@ namespace BarcodeRename
                             string newFileName = selectedBarcode;
                             string newFilePath = Path.Combine(directory, $"{newFileName}{extension}");
 
-                            // ตรวจสอบว่าชื่อไฟล์เดิมตรงกับ barcode
                             if (currentFileName.Equals(newFileName, StringComparison.OrdinalIgnoreCase))
                             {
                                 _logListBox.Items.Add($"Skipped: File already has correct name - {Path.GetFileName(filePath)}");
                                 continue;
                             }
 
-                            // ถ้ามีไฟล์อยู่แล้ว ให้เพิ่มตัวเลขต่อท้าย
                             int counter = 1;
                             while (File.Exists(newFilePath))
                             {
@@ -252,7 +236,6 @@ namespace BarcodeRename
             {
                 var barcodes = new List<string>();
                 
-                // พยายามอ่าน barcode ก่อน
                 var results = _reader.DecodeMultiple(image);
                 if (results != null)
                 {
@@ -265,12 +248,10 @@ namespace BarcodeRename
                     }
                 }
 
-                // ถ้าอ่าน barcode ไม่ได้ ลองอ่านข้อความด้วย OCR
                 if (!barcodes.Any())
                 {
                     using (var processedImage = PreprocessImage(image))
                     {
-                        // ลองอ่าน barcode จากภาพที่ประมวลผลแล้ว
                         results = _reader.DecodeMultiple(processedImage);
                         if (results != null)
                         {
@@ -283,7 +264,6 @@ namespace BarcodeRename
                             }
                         }
 
-                        // ถ้ายังอ่านไม่ได้ ใช้ OCR
                         if (!barcodes.Any())
                         {
                             var qaNumber = ExtractQANumber(processedImage);
@@ -307,32 +287,27 @@ namespace BarcodeRename
         {
             try
             {
-                // สร้างภาพใหม่
                 Bitmap processed = new Bitmap(original.Width, original.Height);
 
-                // ปรับความคมชัดและความแตกต่างของสี
                 using (Graphics g = Graphics.FromImage(processed))
                 {
                     ImageAttributes attributes = new ImageAttributes();
 
-                    // ปรับ contrast และ brightness ใหม่สำหรับพื้นหลังสีส้ม
                     ColorMatrix colorMatrix = new ColorMatrix(new float[][]
                     {
-                        new float[] {3.0f, 0, 0, 0, 0},    // เพิ่ม contrast ของสีแดง
-                        new float[] {0, 3.0f, 0, 0, 0},    // เพิ่ม contrast ของสีเขียว
-                        new float[] {0, 0, 3.0f, 0, 0},    // เพิ่ม contrast ของสีน้ำเงิน
-                        new float[] {0, 0, 0, 1.0f, 0},    // คงค่า alpha
-                        new float[] {-0.8f, -0.8f, -0.8f, 0, 1}  // ปรับ brightness ให้เข้มขึ้น
+                        new float[] {3.0f, 0, 0, 0, 0},
+                        new float[] {0, 3.0f, 0, 0, 0},
+                        new float[] {0, 0, 3.0f, 0, 0},
+                        new float[] {0, 0, 0, 1.0f, 0},
+                        new float[] {-0.8f, -0.8f, -0.8f, 0, 1}
                     });
 
                     attributes.SetColorMatrix(colorMatrix);
 
-                    // วาดภาพใหม่ด้วยการปรับแต่ง
                     Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
                     g.DrawImage(original, rect, 0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
                 }
 
-                // เพิ่มการแปลงเป็นภาพขาวดำ
                 for (int x = 0; x < processed.Width; x++)
                 {
                     for (int y = 0; y < processed.Height; y++)
@@ -340,7 +315,6 @@ namespace BarcodeRename
                         Color pixel = processed.GetPixel(x, y);
                         int grayScale = (int)((pixel.R * 0.299) + (pixel.G * 0.587) + (pixel.B * 0.114));
                         
-                        // ปรับความเข้มของสี (threshold)
                         int threshold = 128;
                         int newValue = grayScale < threshold ? 0 : 255;
                         
@@ -365,7 +339,6 @@ namespace BarcodeRename
                     var text = page.GetText();
                     var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
                     
-                    // ค้นหาข้อความที่ขึ้นต้นด้วย Q และมีความยาว 10-12 ตัวอักษร
                     foreach (var line in lines)
                     {
                         var trimmedLine = line.Trim();
@@ -373,12 +346,11 @@ namespace BarcodeRename
                             trimmedLine.Length >= MIN_BARCODE_LENGTH && 
                             trimmedLine.Length <= MAX_BARCODE_LENGTH)
                         {
-                            // ตรวจสอบว่าเป็นรหัสที่ถูกต้อง (ตัวอักษรและตัวเลขเท่านั้น)
                             if (trimmedLine.All(c => char.IsLetterOrDigit(c)))
                             {
                                 return trimmedLine;
                             }
-                                                }
+                        }
                     }
                 }
                 return string.Empty;
@@ -388,6 +360,8 @@ namespace BarcodeRename
                 return string.Empty;
             }
         }
+    }
+}
 
         protected override void Dispose(bool disposing)
         {
