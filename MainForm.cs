@@ -16,17 +16,30 @@ namespace BarcodeRename
 
         public MainForm()
         {
+           public partial class MainForm : Form
+    {
+        private readonly BarcodeReader _reader;
+        private readonly ListBox _logListBox;
+        private readonly TesseractEngine _tesseract;
+        private const int MIN_BARCODE_LENGTH = 10;
+        private const int MAX_BARCODE_LENGTH = 12;
+
+        public MainForm()
+        {
             InitializeComponent();
 
+            // ตั้งค่าฟอร์ม
             this.Size = new Size(800, 600);
             this.Text = "Barcode Rename";
             this.MinimumSize = new Size(600, 400);
 
+            // สร้าง ListBox
             _logListBox = new ListBox
             {
                 Dock = DockStyle.Bottom,
                 Height = 400
             };
+
 
             // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
             _reader = new BarcodeReader
