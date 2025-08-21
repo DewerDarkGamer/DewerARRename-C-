@@ -365,7 +365,41 @@ namespace BarcodeRename
                             {
                                 return trimmedLine;
                             }
-                        }
+                                                }
                     }
                 }
-                return string
+                return string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (components != null)
+                {
+                    components.Dispose();
+                }
+                if (_tesseract != null)
+                {
+                    _tesseract.Dispose();
+                }
+            }
+            base.Dispose(disposing);
+        }
+
+        private System.ComponentModel.IContainer components = null;
+
+        private void InitializeComponent()
+        {
+            this.components = new System.ComponentModel.Container();
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(800, 600);
+            this.Text = "Barcode Rename";
+        }
+    }
+}
