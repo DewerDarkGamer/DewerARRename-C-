@@ -4,389 +4,360 @@ using ZXing;
 using ZXing.Windows.Compatibility;
 using Tesseract;
 
-namespace BarcodeRename
+namespace BarcodeRename;
+
+public partial class MainForm : Form
 {
-    public partial class MainForm : Form
+    private readonly BarcodeReader _reader;
+    private readonly ListBox _logListBox;
+    private readonly TesseractEngine _tesseract;
+    private const int MIN_BARCODE_LENGTH = 10;
+    private const int MAX_BARCODE_LENGTH = 12;
+
+    public MainForm()
     {
-        private readonly BarcodeReader _reader;
-        private readonly ListBox _logListBox;
-        private readonly TesseractEngine _tesseract;
-        private const int MIN_BARCODE_LENGTH = 10;
-        private const int MAX_BARCODE_LENGTH = 12;
+        InitializeComponent();
 
-        public MainForm()
+        this.Size = new Size(800, 600);
+        this.Text = "Barcode Rename";
+        this.MinimumSize = new Size(600, 400);
+
+        _logListBox = new ListBox
         {
-            InitializeComponent();
+            Dock = DockStyle.Bottom,
+            Height = 400
+        };
 
-            this.Size = new Size(800, 600);
-            this.Text = "Barcode Rename";
-            this.MinimumSize = new Size(600, 400);
-
-            _logListBox = new ListBox
+        // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
+        _reader = new BarcodeReader
+        {
+            AutoRotate = true,
+            Options = new ZXing.Common.DecodingOptions
             {
-                Dock = DockStyle.Bottom,
-                Height = 400
-            };
-
-            // สร้าง BarcodeReader พร้อมการตั้งค่าที่เหมาะสม
-            _reader = new BarcodeReader
-            {
-                AutoRotate = true,
-                Options = new ZXing.Common.DecodingOptions
+                TryHarder = true,
+                TryInverted = true,
+                PureBarcode = false,
+                PossibleFormats = new List<BarcodeFormat>
                 {
-                    TryHarder = true,
-                    TryInverted = true,
-                    PureBarcode = false,
-                    PossibleFormats = new List<BarcodeFormat>
-                    {
-                        BarcodeFormat.CODE_128,
-                        BarcodeFormat.CODE_39,
-                        BarcodeFormat.ITF,
-                        BarcodeFormat.CODE_93,
-                        BarcodeFormat.EAN_13,
-                        BarcodeFormat.EAN_8,
-                        BarcodeFormat.UPC_A,
-                        BarcodeFormat.UPC_E,
-                        BarcodeFormat.QR_CODE,
-                        BarcodeFormat.DATA_MATRIX,
-                        BarcodeFormat.PDF_417
-                    },
-                    ReturnCodabarStartEnd = true,
-                    AssumeCode39CheckDigit = true,
-                    CharacterSet = "UTF-8"
-                }
-            };
-
-            // สร้าง TesseractEngine
-            _tesseract = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default);
-            _tesseract.DefaultPageSegMode = PageSegMode.SingleBlock;
-
-            // สร้าง Panel สำหรับปุ่ม
-            var buttonPanel = new TableLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                Height = 60,
-                Padding = new Padding(10),
-                ColumnCount = 2,
-                RowCount = 1
-            };
-
-            buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-
-            var btnSelectFiles = new Button
-            {
-                Text = "Select Files",
-                Dock = DockStyle.Fill,
-                Height = 40,
-                Font = new Font(Font.FontFamily, 10, FontStyle.Regular),
-                Margin = new Padding(5)
-            };
-            btnSelectFiles.Click += (_, _) => SelectFiles();
-
-            var btnSelectFolder = new Button
-            {
-                Text = "Select Folder",
-                Dock = DockStyle.Fill,
-                Height = 40,
-                Font = new Font(Font.FontFamily, 10, FontStyle.Regular),
-                Margin = new Padding(5)
-            };
-            btnSelectFolder.Click += (_, _) => SelectFolder();
-
-            buttonPanel.Controls.Add(btnSelectFiles, 0, 0);
-            buttonPanel.Controls.Add(btnSelectFolder, 1, 0);
-
-            // เพิ่ม Controls เข้าฟอร์ม
-            this.Controls.Add(_logListBox);
-            this.Controls.Add(buttonPanel);
-
-            // แสดงข้อความต้อนรับ
-            _logListBox.Items.Add("Welcome to Barcode Rename");
-            _logListBox.Items.Add("Click 'Select Files' to process individual files or 'Select Folder' to process all images in a folder");
-            _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
-            _logListBox.Items.Add("");
-        }
-
-        private void SelectFiles()
-        {
-            using var openFileDialog = new OpenFileDialog
-            {
-                Multiselect = true,
-                Filter = "Image files (*.png;*.jpeg;*.jpg;*.bmp)|*.png;*.jpeg;*.jpg;*.bmp|All files (*.*)|*.*",
-                FilterIndex = 1,
-                Title = "Select Images to Rename"
-            };
-
-            if (openFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                ProcessFiles(openFileDialog.FileNames);
+                    BarcodeFormat.CODE_128,
+                    BarcodeFormat.CODE_39,
+                    BarcodeFormat.ITF,
+                    BarcodeFormat.CODE_93,
+                    BarcodeFormat.EAN_13,
+                    BarcodeFormat.EAN_8,
+                    BarcodeFormat.UPC_A,
+                    BarcodeFormat.UPC_E,
+                    BarcodeFormat.QR_CODE,
+                    BarcodeFormat.DATA_MATRIX,
+                    BarcodeFormat.PDF_417
+                },
+                ReturnCodabarStartEnd = true,
+                AssumeCode39CheckDigit = true,
+                CharacterSet = "UTF-8"
             }
-        }
+        };
 
-        private void SelectFolder()
+        // สร้าง TesseractEngine
+        _tesseract = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default);
+        _tesseract.DefaultPageSegMode = PageSegMode.SingleBlock;
+
+        // สร้าง Panel สำหรับปุ่ม
+        var buttonPanel = new TableLayoutPanel
         {
-            using var folderDialog = new FolderBrowserDialog
-            {
-                Description = "Select Folder Containing Images",
-                UseDescriptionForTitle = true,
-                ShowNewFolderButton = true
-            };
+            Dock = DockStyle.Top,
+            Height = 60,
+            Padding = new Padding(10),
+            ColumnCount = 2,
+            RowCount = 1
+        };
 
-            if (folderDialog.ShowDialog() == DialogResult.OK)
-            {
-                string[] files = Directory.GetFiles(folderDialog.SelectedPath, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(file => file.ToLower().EndsWith(".png") || 
-                                 file.ToLower().EndsWith(".jpg") || 
-                                 file.ToLower().EndsWith(".jpeg") || 
-                                 file.ToLower().EndsWith(".bmp"))
-                    .ToArray();
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-                if (files.Length == 0)
+        var btnSelectFiles = new Button
+        {
+            Text = "Select Files",
+            Dock = DockStyle.Fill,
+            Height = 40,
+            Font = new Font(Font.FontFamily, 10, FontStyle.Regular),
+            Margin = new Padding(5)
+        };
+        btnSelectFiles.Click += (_, _) => SelectFiles();
+
+        var btnSelectFolder = new Button
+        {
+            Text = "Select Folder",
+            Dock = DockStyle.Fill,
+            Height = 40,
+            Font = new Font(Font.FontFamily, 10, FontStyle.Regular),
+            Margin = new Padding(5)
+        };
+        btnSelectFolder.Click += (_, _) => SelectFolder();
+
+        buttonPanel.Controls.Add(btnSelectFiles, 0, 0);
+        buttonPanel.Controls.Add(btnSelectFolder, 1, 0);
+
+        // เพิ่ม Controls เข้าฟอร์ม
+        this.Controls.Add(_logListBox);
+        this.Controls.Add(buttonPanel);
+
+        // แสดงข้อความต้อนรับ
+        _logListBox.Items.Add("Welcome to Barcode Rename");
+        _logListBox.Items.Add("Click 'Select Files' to process individual files or 'Select Folder' to process all images in a folder");
+        _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
+        _logListBox.Items.Add("");
+    }
+
+    private void SelectFiles()
+    {
+        using var openFileDialog = new OpenFileDialog
+        {
+            Multiselect = true,
+            Filter = "Image files (*.png;*.jpeg;*.jpg;*.bmp)|*.png;*.jpeg;*.jpg;*.bmp|All files (*.*)|*.*",
+            FilterIndex = 1,
+            Title = "Select Images to Rename"
+        };
+
+        if (openFileDialog.ShowDialog() == DialogResult.OK)
+        {
+            ProcessFiles(openFileDialog.FileNames);
+        }
+    }
+
+    private void SelectFolder()
+    {
+        using var folderDialog = new FolderBrowserDialog
+        {
+            Description = "Select Folder Containing Images",
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = true
+        };
+
+        if (folderDialog.ShowDialog() == DialogResult.OK)
+        {
+            string[] files = Directory.GetFiles(folderDialog.SelectedPath, "*.*", SearchOption.TopDirectoryOnly)
+                .Where(file => file.ToLower().EndsWith(".png") || 
+                             file.ToLower().EndsWith(".jpg") || 
+                             file.ToLower().EndsWith(".jpeg") || 
+                             file.ToLower().EndsWith(".bmp"))
+                .ToArray();
+
+            if (files.Length == 0)
+            {
+                _logListBox.Items.Add("No image files found in the selected folder");
+                return;
+            }
+
+            ProcessFiles(files);
+        }
+    }
+
+    private void ProcessFiles(string[] files)
+    {
+        _logListBox.Items.Clear();
+
+        foreach (string filePath in files)
+        {
+            try
+            {
+                List<string> barcodes;
+                using (var bitmap = new Bitmap(filePath))
                 {
-                    _logListBox.Items.Add("No image files found in the selected folder");
-                    return;
+                    barcodes = ReadAllBarcodes(bitmap);
                 }
 
-                ProcessFiles(files);
-            }
-        }
-
-        private void ProcessFiles(string[] files)
-        {
-            _logListBox.Items.Clear();
-
-            foreach (string filePath in files)
-            {
-                try
+                if (barcodes.Any())
                 {
-                    List<string> barcodes;
-                    using (var bitmap = new Bitmap(filePath))
+                    _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
+                    
+                    var validBarcodes = barcodes
+                        .Where(b => b.Length >= MIN_BARCODE_LENGTH && b.Length <= MAX_BARCODE_LENGTH)
+                        .ToList();
+
+                    foreach (var barcode in barcodes)
                     {
-                        barcodes = ReadAllBarcodes(bitmap);
+                        bool isValid = barcode.Length >= MIN_BARCODE_LENGTH && barcode.Length <= MAX_BARCODE_LENGTH;
+                        _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length}) {(isValid ? "[VALID]" : "[INVALID]")}");
                     }
 
-                    if (barcodes.Any())
+                    if (validBarcodes.Any())
                     {
-                        _logListBox.Items.Add($"Found {barcodes.Count} barcodes in: {Path.GetFileName(filePath)}");
-                        
-                        var validBarcodes = barcodes
-                            .Where(b => b.Length >= MIN_BARCODE_LENGTH && b.Length <= MAX_BARCODE_LENGTH)
-                            .ToList();
+                        string selectedBarcode = validBarcodes[0];
+                        string directory = Path.GetDirectoryName(filePath)!;
+                        string extension = Path.GetExtension(filePath);
+                        string currentFileName = Path.GetFileNameWithoutExtension(filePath);
+                        string newFileName = selectedBarcode;
+                        string newFilePath = Path.Combine(directory, $"{newFileName}{extension}");
 
-                        foreach (var barcode in barcodes)
+                        if (currentFileName.Equals(newFileName, StringComparison.OrdinalIgnoreCase))
                         {
-                            bool isValid = barcode.Length >= MIN_BARCODE_LENGTH && barcode.Length <= MAX_BARCODE_LENGTH;
-                            _logListBox.Items.Add($"  - {barcode} (Length: {barcode.Length}) {(isValid ? "[VALID]" : "[INVALID]")}");
+                            _logListBox.Items.Add($"Skipped: File already has correct name - {Path.GetFileName(filePath)}");
+                            continue;
                         }
 
-                        if (validBarcodes.Any())
+                        int counter = 1;
+                        while (File.Exists(newFilePath))
                         {
-                            string selectedBarcode = validBarcodes[0];
-                            string directory = Path.GetDirectoryName(filePath)!;
-                            string extension = Path.GetExtension(filePath);
-                            string currentFileName = Path.GetFileNameWithoutExtension(filePath);
-                            string newFileName = selectedBarcode;
-                            string newFilePath = Path.Combine(directory, $"{newFileName}{extension}");
-
-                            if (currentFileName.Equals(newFileName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logListBox.Items.Add($"Skipped: File already has correct name - {Path.GetFileName(filePath)}");
-                                continue;
-                            }
-
-                            int counter = 1;
-                            while (File.Exists(newFilePath))
-                            {
-                                newFilePath = Path.Combine(directory, $"{newFileName}_{counter}{extension}");
-                                counter++;
-                            }
-
-                            Thread.Sleep(100);
-                            File.Move(filePath, newFilePath);
-                            _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
+                            newFilePath = Path.Combine(directory, $"{newFileName}_{counter}{extension}");
+                            counter++;
                         }
-                        else
-                        {
-                            _logListBox.Items.Add($"Skipped: No barcode meets length requirement ({MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters)");
-                        }
+
+                        Thread.Sleep(100);
+                        File.Move(filePath, newFilePath);
+                        _logListBox.Items.Add($"Renamed: {Path.GetFileName(filePath)} -> {Path.GetFileName(newFilePath)}");
                     }
                     else
                     {
-                        _logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
+                        _logListBox.Items.Add($"Skipped: No barcode meets length requirement ({MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters)");
                     }
-
-                    _logListBox.Items.Add("");
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
-                    _logListBox.Items.Add("");
+                    _logListBox.Items.Add($"No barcode found in: {Path.GetFileName(filePath)}");
                 }
+
+                _logListBox.Items.Add("");
             }
-
-            _logListBox.Items.Add("");
-            _logListBox.Items.Add($"Process completed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
-        }
-
-        private List<string> ReadAllBarcodes(Bitmap image)
-        {
-            try
+            catch (Exception ex)
             {
-                var barcodes = new List<string>();
-                
-                var results = _reader.DecodeMultiple(image);
-                if (results != null)
-                {
-                    foreach (var result in results)
-                    {
-                        if (!string.IsNullOrWhiteSpace(result.Text))
-                        {
-                            barcodes.Add(result.Text);
-                        }
-                    }
-                }
-
-                if (!barcodes.Any())
-                {
-                    using (var processedImage = PreprocessImage(image))
-                    {
-                        results = _reader.DecodeMultiple(processedImage);
-                        if (results != null)
-                        {
-                            foreach (var result in results)
-                            {
-                                if (!string.IsNullOrWhiteSpace(result.Text))
-                                {
-                                    barcodes.Add(result.Text);
-                                }
-                            }
-                        }
-
-                        if (!barcodes.Any())
-                        {
-                            var qaNumber = ExtractQANumber(processedImage);
-                            if (!string.IsNullOrWhiteSpace(qaNumber))
-                            {
-                                barcodes.Add(qaNumber);
-                            }
-                        }
-                    }
-                }
-
-                return barcodes;
-            }
-            catch
-            {
-                return new List<string>();
+                _logListBox.Items.Add($"Error processing {Path.GetFileName(filePath)}: {ex.Message}");
+                _logListBox.Items.Add("");
             }
         }
 
-        private Bitmap PreprocessImage(Bitmap original)
+        _logListBox.Items.Add("");
+        _logListBox.Items.Add($"Process completed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        _logListBox.Items.Add($"Barcode length requirement: {MIN_BARCODE_LENGTH}-{MAX_BARCODE_LENGTH} characters");
+    }
+
+    private List<string> ReadAllBarcodes(Bitmap image)
+    {
+        try
         {
-            try
+            var barcodes = new List<string>();
+            
+            var results = _reader.DecodeMultiple(image);
+            if (results != null)
             {
-                Bitmap processed = new Bitmap(original.Width, original.Height);
-
-                using (Graphics g = Graphics.FromImage(processed))
+                foreach (var result in results)
                 {
-                    ImageAttributes attributes = new ImageAttributes();
-
-                    ColorMatrix colorMatrix = new ColorMatrix(new float[][]
+                    if (!string.IsNullOrWhiteSpace(result.Text))
                     {
-                        new float[] {3.0f, 0, 0, 0, 0},
-                        new float[] {0, 3.0f, 0, 0, 0},
-                        new float[] {0, 0, 3.0f, 0, 0},
-                        new float[] {0, 0, 0, 1.0f, 0},
-                        new float[] {-0.8f, -0.8f, -0.8f, 0, 1}
-                    });
-
-                    attributes.SetColorMatrix(colorMatrix);
-
-                    Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
-                    g.DrawImage(original, rect, 0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
-                }
-
-                for (int x = 0; x < processed.Width; x++)
-                {
-                    for (int y = 0; y < processed.Height; y++)
-                    {
-                        Color pixel = processed.GetPixel(x, y);
-                        int grayScale = (int)((pixel.R * 0.299) + (pixel.G * 0.587) + (pixel.B * 0.114));
-                        
-                        int threshold = 128;
-                        int newValue = grayScale < threshold ? 0 : 255;
-                        
-                        processed.SetPixel(x, y, Color.FromArgb(pixel.A, newValue, newValue, newValue));
+                        barcodes.Add(result.Text);
                     }
                 }
-
-                return processed;
             }
-            catch
-            {
-                return new Bitmap(original);
-            }
-        }
 
-        private string ExtractQANumber(Bitmap image)
-        {
-            try
+            if (!barcodes.Any())
             {
-                using (var page = _tesseract.Process(image))
+                using (var processedImage = PreprocessImage(image))
                 {
-                    var text = page.GetText();
-                    var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                    
-                    foreach (var line in lines)
+                    results = _reader.DecodeMultiple(processedImage);
+                    if (results != null)
                     {
-                        var trimmedLine = line.Trim();
-                        if (trimmedLine.StartsWith("Q") && 
-                            trimmedLine.Length >= MIN_BARCODE_LENGTH && 
-                            trimmedLine.Length <= MAX_BARCODE_LENGTH)
+                        foreach (var result in results)
                         {
-                            if (trimmedLine.All(c => char.IsLetterOrDigit(c)))
+                            if (!string.IsNullOrWhiteSpace(result.Text))
                             {
-                                return trimmedLine;
+                                barcodes.Add(result.Text);
                             }
                         }
                     }
+
+                    if (!barcodes.Any())
+                    {
+                        var qaNumber = ExtractQANumber(processedImage);
+                        if (!string.IsNullOrWhiteSpace(qaNumber))
+                        {
+                            barcodes.Add(qaNumber);
+                        }
+                    }
                 }
-                return string.Empty;
             }
-            catch
-            {
-                return string.Empty;
-            }
+
+            return barcodes;
+        }
+        catch
+        {
+            return new List<string>();
         }
     }
-}
 
-        protected override void Dispose(bool disposing)
+    private Bitmap PreprocessImage(Bitmap original)
+    {
+        try
         {
-            if (disposing)
+            Bitmap processed = new Bitmap(original.Width, original.Height);
+
+            using (Graphics g = Graphics.FromImage(processed))
             {
-                if (components != null)
+                ImageAttributes attributes = new ImageAttributes();
+
+                ColorMatrix colorMatrix = new ColorMatrix(new float[][]
                 {
-                    components.Dispose();
-                }
-                if (_tesseract != null)
+                    new float[] {3.0f, 0, 0, 0, 0},
+                    new float[] {0, 3.0f, 0, 0, 0},
+                    new float[] {0, 0, 3.0f, 0, 0},
+                    new float[] {0, 0, 0, 1.0f, 0},
+                    new float[] {-0.8f, -0.8f, -0.8f, 0, 1}
+                });
+
+                attributes.SetColorMatrix(colorMatrix);
+
+                Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
+                g.DrawImage(original, rect, 0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
+            }
+
+            for (int x = 0; x < processed.Width; x++)
+            {
+                for (int y = 0; y < processed.Height; y++)
                 {
-                    _tesseract.Dispose();
+                    Color pixel = processed.GetPixel(x, y);
+                    int grayScale = (int)((pixel.R * 0.299) + (pixel.G * 0.587) + (pixel.B * 0.114));
+                    
+                    int threshold = 128;
+                    int newValue = grayScale < threshold ? 0 : 255;
+                    
+                    processed.SetPixel(x, y, Color.FromArgb(pixel.A, newValue, newValue, newValue));
                 }
             }
-            base.Dispose(disposing);
+
+            return processed;
         }
-
-        private System.ComponentModel.IContainer components = null;
-
-        private void InitializeComponent()
+        catch
         {
-            this.components = new System.ComponentModel.Container();
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 600);
-            this.Text = "Barcode Rename";
+            return new Bitmap(original);
+        }
+    }
+
+    private string ExtractQANumber(Bitmap image)
+    {
+        try
+        {
+            using (var page = _tesseract.Process(image))
+            {
+                var text = page.GetText();
+                var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+                    if (trimmedLine.StartsWith("Q") && 
+                        trimmedLine.Length >= MIN_BARCODE_LENGTH && 
+                        trimmedLine.Length <= MAX_BARCODE_LENGTH)
+                    {
+                        if (trimmedLine.All(c => char.IsLetterOrDigit(c)))
+                        {
+                            return trimmedLine;
+                        }
+                    }
+                }
+                return string.Empty;
+            }
+        }
+        catch
+        {
+            return string.Empty;
         }
     }
 }
